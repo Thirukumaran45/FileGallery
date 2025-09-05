@@ -1,23 +1,20 @@
-import 'package:filegallery/viewer/homeScreen.dart';
+import 'package:filegallery/viewer/screens/homeScreen.dart';
 import 'package:flutter/material.dart';
 class ImagePreviewScreen extends StatelessWidget {
   final String imagePath; // Pass the image asset or network path
-  final double maxWidth; // Max width for resizing
-  final double maxHeight; // Max height for resizing
-
+  final String fileName;
   const ImagePreviewScreen({
     super.key,
+    required this.fileName,
     required this.imagePath,
-    this.maxWidth = 300,  // default max width
-    this.maxHeight = 400, // default max height
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "Image Preview",
+        title:  Text(
+          fileName,
           style: TextStyle(color: Colors.white),
         ),
         leading: IconButton(
@@ -27,27 +24,26 @@ class ImagePreviewScreen extends StatelessWidget {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => const HomeScreen(username: "Thiru")),
+                  builder: (context) => const HomeScreen()),
             );
           },
         ),
         backgroundColor: Colors.blue,
       ),
       body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: maxWidth,
-            maxHeight: maxHeight,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.contain, // preserves aspect ratio
-            ),
-          ),
-        ),
+  child: SizedBox(
+    width: MediaQuery.of(context).size.width*1,  // fixed width
+    height: MediaQuery.of(context).size.height*0.6, // fixed height
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Image.network(
+        imagePath,
+        fit: BoxFit.fill, // force to fill 300x200
       ),
+    ),
+  ),
+),
+
     );
   }
 }

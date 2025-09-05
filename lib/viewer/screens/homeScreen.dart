@@ -1,10 +1,15 @@
-import 'package:filegallery/viewer/Login.dart';
+import 'dart:developer' show log;
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:filegallery/controller/FirebaseCloud.dart';
+import 'package:filegallery/controller/FirebaseStorage.dart';
+import 'package:filegallery/controller/registerController.dart';
+import 'package:filegallery/viewer/screens/Login.dart';
 import 'package:filegallery/viewer/widgets/layouts.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String username; // pass from login
-  const HomeScreen({super.key, required this.username});
+  const HomeScreen({super.key,});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -12,10 +17,77 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with TickerProviderStateMixin {
-  // Dummy lists for now (replace with Firebase data later)
-  final List<String> images = ["assets/profile.jpg", "assets/profile.jpg","assets/profile.jpg",
-  "assets/profile.jpg","assets/profile.jpg","assets/profile.jpg","assets/profile.jpg"];
-  final List<String> pdfs = ["notes.pdf", "resume.pdf"];
+
+
+  String? userName,uid;
+  late final RegisterController controller ;
+  late final FirebaseCloud cloudController ;
+  late final FirebaseFileService _firebaseService ;
+  List<Map<String,String>> images = [];
+  List<Map<String,String>> pdfs = [];
+   bool isLoading = true; 
+
+@override
+  void initState() {
+    super.initState();
+   controller = RegisterController();
+   cloudController = FirebaseCloud();
+  _firebaseService = FirebaseFileService();
+    userData();
+  }
+
+void userData() async {
+  final user = controller.getCurrentUser();
+  String? name = await cloudController.getuserName(uid: user!.uid);
+
+  var files = await _firebaseService.getAllFiles(user.uid);
+
+  setState(() {
+    userName = name;
+    uid = user.uid;
+    images = files['images'] ?? []; // List<Map<String,String>>
+    pdfs = files['pdfs'] ?? [];     // List<Map<String,String>>
+     isLoading = false; 
+  });
+}
+
+
+
+
+Future<void> _pickAndUploadFile() async {
+  try {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'pdf'],
+    );
+
+    if (result != null && result.files.isNotEmpty) {
+      File file = File(result.files.single.path!);
+
+      // Upload file
+      await _firebaseService.uploadFile(file, context, uid);
+
+      // 🔹 Refresh list
+      var files = await _firebaseService.getAllFiles(uid);
+      setState(() {
+        images = files['images'] ?? [];
+        pdfs = files['pdfs'] ?? [];
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'File uploaded successfully!',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    log("Error picking/uploading file: $e");
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -57,13 +129,14 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               builder: (context) {
                 return Container(
+                  color: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                   height: 180,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // 🔹 Username at top
-                      Text( " Are you sure, ${widget.username} ?",
+                      Text( "Hey , $userName are sure about to log out 😔 ? ",
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -71,7 +144,8 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       // 🔹 Logout button at bottom
                       ElevatedButton.icon(
-                        onPressed: () {
+                        onPressed: ()async {
+                          await controller.acctSignOut(context);
                           Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(
@@ -132,17 +206,20 @@ class _HomeScreenState extends State<HomeScreen>
             ],
           ),
         ),
-        body: TabBarView(
+        body:  isLoading
+            ? const Center(child: CircularProgressIndicator(color: Colors.blue,)) // 🔹 Loader while fetching
+            :
+        TabBarView(
           children: [
             // Images Tab
             buildImageList(images),
             // PDFs Tab
-            buildFileList(pdfs, isImage: false),
+            buildFileList(pdfs),
           ],
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () {
-            // TODO: file_picker + Firebase Storage upload
+            _pickAndUploadFile();
           },
           backgroundColor: const Color.fromARGB(255, 230, 86, 86),
           foregroundColor: Colors.white,

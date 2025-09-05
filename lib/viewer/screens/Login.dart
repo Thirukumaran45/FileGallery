@@ -1,5 +1,8 @@
-import 'package:filegallery/viewer/Register.dart';
-import 'package:filegallery/viewer/homeScreen.dart';
+import 'package:filegallery/controller/registerController.dart';
+import 'package:filegallery/enum/diaog.dart';
+import 'package:filegallery/viewer/screens/Register.dart';
+import 'package:filegallery/viewer/screens/forgotpassword.dart';
+import 'package:filegallery/viewer/screens/homeScreen.dart';
 import 'package:flutter/material.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -11,10 +14,41 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool changer = true;
-  final TextEditingController _email = TextEditingController();
-  final TextEditingController _password = TextEditingController();
+  late final TextEditingController _email ;
+  late final TextEditingController _password ;
   var isNotValid = false;
+  late RegisterController controller;
+  String? _emailError;
+  String? _passwordError;
 
+bool _validateEmail(String email) {
+  final regex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+  return regex.hasMatch(email);
+}
+
+  void _login() {
+    setState(() {
+      _emailError = _email.text.trim().isEmpty
+          ? "Email cannot be empty"
+          : (!_validateEmail(_email.text.trim()) ? "Enter valid email" : null);
+      _passwordError =
+          _password.text.trim().isEmpty ? "Password cannot be empty" : null;
+    });
+
+  }
+  @override
+  void initState() {
+    super.initState();
+      _email = TextEditingController();
+   _password = TextEditingController();
+   controller=  RegisterController();
+  }
+  @override
+  void dispose() {
+     _email.dispose();
+   _password.dispose();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,10 +92,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       enableSuggestions: false,
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
+                      decoration:  InputDecoration(
                           prefixIcon: Icon(Icons.email),
                         hintText: "enter the email",
-                        labelStyle: TextStyle(fontSize: 20),
+                        errorText: _emailError,
+
                         border: UnderlineInputBorder(),
                       ),
                     ),
@@ -89,6 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               Icon(changer ? Icons.visibility_off : Icons.visibility, color: changer?Colors.red:Colors.green,),
                         ),
                         hintText: "enter the password",
+                        errorText: _passwordError,
                         labelStyle: const TextStyle(fontSize: 20),
                         border: const UnderlineInputBorder(),
                       ),
@@ -96,9 +132,15 @@ class _LoginScreenState extends State<LoginScreen> {
                      Row( mainAxisAlignment: MainAxisAlignment.end,
                        children: [
                          TextButton(
-                                           onPressed: () {},
-                                           child: const Text("Forgot password",style: TextStyle(fontSize: 15,),),
-                                         ),
+                            onPressed: () {
+                               Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ForgotPassword()),
+                        (route) => false);
+                            },
+                        child: const Text("Forgot password",style: TextStyle(fontSize: 15,),),
+                          ),
                        ],
                      ),
                     const SizedBox(
@@ -118,19 +160,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: WidgetStateProperty.all(RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(40)))),
                     onPressed: () async {
-                      final email = _email.text.trim();
-                      final password = _password.text.trim();
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>  HomeScreen(username: "Thiru",)),
-                        (route) => false);
-                      if (email.isNotEmpty && password.isNotEmpty) {
-                      } else {
-                        setState(() {
-                          isNotValid = true;
-                        });
+                    _login();
+                    if ( _emailError == null && _passwordError == null) {
+                      if(!context.mounted)return;
+                      await controller.signInEmailPassword(_email.text,_password.text,context);
+                      showLoadDialog(context: context, classNmae: const HomeScreen());
                       }
+                     
 
                       //we need to read the emit state frm the bloc
                     },
